@@ -23,7 +23,6 @@ fi
 
 # check number of lines in text file >= 10000
 NUMOFLINES=$(wc -l < $2)
-#echo "NUMOFLINES = " $NUMOFLINES
 if [ $NUMOFLINES -lt 10000 ]; then
     echo "File has less than 10000 lines!"
 fi
@@ -73,57 +72,44 @@ done
 echo -e "\n"
 let "incoming--"
 
-#echo "index = " $index
-
 # for every page
 for dir in */; do
   cd $dir
   #echo $dir
   for file in *; do
     #1)
-    k=$(($(($RANDOM%$((`expr $NUMOFLINES-2001`))))+1))
+    k=$(( 2+RANDOM%(NUMOFLINES-2002) ))
     #echo $k
     #2)
-    m=$(($(($RANDOM%$((1000))))+1000))
+    m=$(( 1001+RANDOM%999 ))
     #echo $m
     #3)
     f=$(($(($4/$((2))))+1))
     #echo $f
-    FILES=$(ls -I $file | shuf | head -n $f)
+    FILES=$(ls -I $file | shuf | head -n $(($f+2)))
     #4)
     q=$(($(($3/$((2))))+1))
-    FILES2=$(ls ../ -I $dir -p -R | grep -v / | shuf | head -n $q)
+    FILES2=$(ls ../ -I $dir -p -R | grep -v / | shuf | head -n $(($q+2)))
     #echo $q
 
     # write data and links now in file $file
-    echo -e "<!DOCTYPE html>\n<html>\n\t<body>" >> $file
+    echo -e "<!DOCTYPE html>\n<html>\n\t<body>\n" >> $file
 
-    #TOTAL=$(ls -I $file | shuf | head -n $f && ls ../ -I $dir -R | shuf | head -n $q)
-    TOTAL="$FILES $FILES2"
+    TOTAL=("$FILES $FILES2")
     arr=($TOTAL)
-    #echo "total = ", $TOTAL
 
     let "l = $m/($f+$q)"
     txt=$(sed -n "$k,$l"p ../../$2)
-    #txt=$(sed -n -s '1,2!d' ../../$2)
-    #txt=$(cat ../../$2 -n | grep " 50" -b10 -a10)
     echo $txt >> $file
 
     printf "Adding link to $file"
 
     for ((i=1;i<=($f+$q);i++)); do
-			let "start=$k+($i-1)*m/($f+$q)"
+			let "start=$k+($i-1)*$m/($f+$q)"
 			let "end=$start + $m/($f+$q)"
-			#echo "start=$start end=$end"
       awk -v s=$start -v e=$end 'NR>=s&&NR<=e' "../../$2" >> $file
-      #echo >> $file
-      #a=$(sed -n -e "$i"p "../../$2")
-      #echo "ela" $(awk -F ' ,' '$TOTAL')
-      j=`expr $i - 1`
-      #echo "arri = " "${arr[$j]}" " hrecehyhh"
+      let "j=i-1"
       arr[$j]=$(find ../ -name "${arr[$j]}")
-      #echo "arri = " ${arr[$j]}
-      #echo "ela" "${arr[$j]}" "esdasfgd"
       echo "<a href="${arr[$j]}"> Link$i </a>" >> $file
 
       # check for incoming links
@@ -135,12 +121,11 @@ for dir in */; do
 
     done
 
-    echo -e "\t<body>\n</html>" >> $file
+    echo -e "\t<body>\n</html>\n" >> $file
     echo -e "\e[1;32m\t[ 0K! ]\e[0m"
 
   done
 
-  #echo $FILES
   cd ..
 done
 

@@ -10,6 +10,7 @@
 #include <poll.h>
 #include <time.h>
 #include <sys/timeb.h>
+#include <dirent.h>
 
 #include <sys/wait.h>   /* sockets */
 #include <sys/types.h>  /* sockets */
@@ -19,10 +20,20 @@
 #include <ctype.h>      /* toupper */
 
 #define BUFSIZE 1024
+#define REPLYSIZE 100000
+
+struct crawl {
+  char* host_or_ip;
+  int server_port;
+  char* save_dir;
+};
+
+// SERVER
 
 struct help {
   struct sockaddr_in cli_addr;
   int newsockfd;
+  char* url;
 };
 
 void* reply_request(void*);
@@ -46,3 +57,9 @@ int Empty(Queue *);
 int Full(Queue *);
 void Insert(ItemType, Queue *);
 void Remove(Queue *, ItemType *);
+int Exists(ItemType, Queue *);
+
+// CRAWLER
+
+void* make_directory(void*);
+int Analyze_Insert(ItemType,int,struct sockaddr_in);

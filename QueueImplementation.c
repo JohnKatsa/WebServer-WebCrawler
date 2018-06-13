@@ -42,7 +42,6 @@ void Remove(Queue *Q, ItemType *F)
 {
    QueueNode *Temp;
 
-
    if (Q->Front==NULL){
       printf("attempt to remove item from an empty queue");
    } else {
@@ -52,4 +51,28 @@ void Remove(Queue *Q, ItemType *F)
       free(Temp);
       if (Q->Front==NULL) Q->Rear=NULL;
    }
+}
+
+int Exists(ItemType R, Queue *Q)
+{
+  // empty queue
+  if (Q->Front==NULL){
+    printf("attempt to check for item in an empty queue");
+  }
+  else{
+
+    // if 1 item in queue only
+    if(Q->Front == Q->Rear)
+      return (!strcmp(Q->Front->Item.url,R.url));
+
+    // if more than 1 items in queue
+    QueueNode* Temp = Q->Front;
+    while(Temp != Q->Rear){
+      if(!strcmp(Temp->Item.url,R.url)) // found again in history queue
+        return 1; // it exists
+      Temp = Temp->Link;
+    }
+  }
+
+  return 0;   // doesn't exist
 }

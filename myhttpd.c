@@ -92,10 +92,10 @@ int main(int argc, char** argv)
     perror("bind");
 
   // listen (for input)
-  listen(sockfdc,5);   // 5 = the number of connections that can
+  listen(sockfdc,8192);   // 5 = the number of connections that can
                       // be waiting while the process is handling a particular connection
   // listen (for output)
-  listen(sockfds,5);
+  listen(sockfds,8192);
 
   // thread pool
   tid = malloc(num_of_threads*sizeof(pthread_t));
@@ -143,13 +143,11 @@ int main(int argc, char** argv)
         if(read(newsockfd,buffer,BUFSIZE-1) < 0){
           perror("ERROR reading from socket");
         }
-        printf("Here is the message: %s\n",buffer);
-        char* token = strtok(buffer," ");  //token
-        token = strtok(NULL, " ");
-        printf("token is %s\n", token);
+        //printf("Here is the message: %s\n",buffer);
+        char* token = buffer;
         if(token == NULL)
           continue;
-        if(!strncmp("/STATS",token,6)){
+        if(!strncmp("STATS",token,5)){
           // calculate time elapsed
           ftime(&end);
           int total_seconds_elapsed = end.time - start.time;
@@ -161,15 +159,13 @@ int main(int argc, char** argv)
           sprintf(time_str, "%02i:%02i:%02i.%02i", hours_elapsed, minutes_elapsed, seconds_elapsed,mil_elapsed);
           printf("%02i:%02i:%02i", hours_elapsed, minutes_elapsed, seconds_elapsed);
 
-          sprintf(str,"HTTP/1.1 200 OK\r\nDate: GMT\r\nServer: myhttpd/1.0.0 (Ubuntu64)\r\nContent-Length: 255\r\nContent-Type: text/html\r\nConnection: Closed\r\n\r\n<html>Server up for %s, served %d pages, %d bytes</html>\r\n",time_str,number_of_pages,number_of_bytes);
-          //sprintf(str,"Server up for 0, served %d pages, %d bytes"/*,running_time*/, number_of_pages,number_of_bytes);
+          sprintf(str,"Server up for %s, served %d pages, %d bytes\n",time_str,number_of_pages,number_of_bytes);
           if(write(newsockfd,str,BUFSIZE) < 0)
             perror("ERROR writing to socket");
           close(newsockfd);
         }
-        else if(!strncmp("/SHUTDOWN",token,9)){
-          sprintf(str,"HTTP/1.1 200 OK\r\nDate: GMT\r\nServer: myhttpd/1.0.0 (Ubuntu64)\r\nContent-Length: 255\r\nContent-Type: text/html\r\nConnection: Closed\r\n\r\n<html>SHUTTING SERVER DOWN!</html>\r\n");
-          //sprintf(str,"Server up for 0, served %d pages, %d bytes"/*,running_time*/, number_of_pages,number_of_bytes);
+        else if(!strncmp("SHUTDOWN",token,8)){
+          sprintf(str,"\nSHUTTING SERVER DOWN! Byeeee!\n");
           if(write(newsockfd,str,BUFSIZE) < 0)
             perror("ERROR writing to socket");
           close(newsockfd);
@@ -181,13 +177,6 @@ int main(int argc, char** argv)
       }
     }
   }
-
-  /*char hostname[100];
-  gethostname(hostname, 1023);
-  printf("%s", hostname);
-  struct hostent* rem = gethostbyaddr((char *) &cli_addr.sin_addr.s_addr, sizeof(cli_addr.sin_addr.s_addr), cli_addr.sin_family);
-  printf("%s\n", rem->h_name);*/
-
 
   close(sockfdc);
   close(sockfds);
@@ -235,11 +224,16 @@ void* reply_request(void* arg)
     strcat(token2,token);
     printf("path = %s\n", token2); // token contains path to file
 
+    // no permissions
+    if(access(token2, R_OK) != 0){
+      if(write(h->newsockfd,"HTTP/1.1 403 Forbidden\r\nDate: Mon, 27 May 2018 12:28:53 GMT\r\nServer: myhttpd/1.0.0 (Ubuntu64)\r\nContent-Length: 124\r\nContent-Type: text/html\r\nConnection: Closed\r\n\r\n<html>Sorry dude, couldn't find this file.</html>",BUFSIZE-1) < 0)
+        perror("ERROR writing to socket");
+      continue;
+    }
+
     int fd = open(token2, O_RDONLY);
     free(token2);
     if(fd <= 0){
-      printf("<0\n");
-
       if(write(h->newsockfd,"HTTP/1.1 404 Not Found\r\nDate: Mon, 27 May 2018 12:28:53 GMT\r\nServer: myhttpd/1.0.0 (Ubuntu64)\r\nContent-Length: 124\r\nContent-Type: text/html\r\nConnection: Closed\r\n\r\n<html>Sorry dude, couldn't find this file.</html>",BUFSIZE-1) < 0)
         perror("ERROR writing to socket");
       continue;
@@ -253,12 +247,17 @@ void* reply_request(void* arg)
       read(fd,str,size);
       close(fd);
     }
-char* buffer2 = malloc(size+1+200);
+
+    char* buffer2 = malloc(size+1+200);
     sprintf(buffer2,"HTTP/1.1 200 OK\r\nDate: %s GMT\r\nServer: myhttpd/1.0.0 (Ubuntu64)\r\nContent-Length: %d\r\nContent-Type: text/html\r\nConnection: Closed\r\n\r\n%s",c_time_string,size,str);
-free(str);
+
+    free(str);
+
     if(write(h->newsockfd,buffer2,strlen(buffer2)) < 0)
       perror("ERROR writing to socket");
-free(buffer2);
+
+    free(buffer2);
+
     // update stats
     pthread_mutex_lock(&lock_pages);
     number_of_pages++;
